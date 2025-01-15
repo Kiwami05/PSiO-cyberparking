@@ -1,0 +1,6 @@
+- [ ] Mechanizm barierek
+- [ ] Mechanizm zajętości miejsc
+- [x] Bounding box-y dla miejsc parkingowych
+- [x] Bounding box-y dla aut
+- [ ] Sczytywanie tablic rejestracyjnych
+- [ ] Funkcjonalna baza danych na tablice rejestracyjne
