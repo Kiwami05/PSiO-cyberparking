@@ -9,10 +9,10 @@ import numpy as np
 pytesseract.pytesseract.tesseract_cmd = r'/usr/bin/tesseract'
 
 # Ścieżka do filmu i pliku CSV
-video_path = 'data/Film_2.mp4'
+video_path = 'data/Film_18.mp4'
 csv_path = 'data/parking_spots.csv'
-log_path = video_path.replace('.mp4', '.log')
-output_video_path = video_path.replace('.mp4', '-przetworzony.mp4')
+log_path = video_path.replace('.mp4', '-alt.log')
+output_video_path = video_path.replace('.mp4', '-przetworzony-alt.mp4')
 
 # Tworzy tło za pomocą BackgroundSubtractor
 back_sub = cv2.createBackgroundSubtractorMOG2(history=500, varThreshold=50)
@@ -101,6 +101,43 @@ def read_license_plate(roi):
         return None
 
 
+# Funkcja do wyznaczenia średniego koloru tła z pierwszej klatki
+def calculate_background_color(frame):
+    # Zamiana na przestrzeń HSV dla lepszej analizy koloru
+    hsv_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+    mean_color = cv2.mean(hsv_frame)[:3]  # Średnia wartość koloru HSV
+    return mean_color  # Zwracamy (H, S, V)
+
+
+# Funkcja do obliczenia średniego koloru i kontrastu w bounding boxie
+def analyze_bounding_box(frame, bounding_box):
+    x, y, w, h = bounding_box
+    cropped = frame[y:y + h, x:x + w]
+    hsv_cropped = cv2.cvtColor(cropped, cv2.COLOR_BGR2HSV)
+
+    # Obliczanie średniego koloru w HSV
+    mean_color = cv2.mean(hsv_cropped)[:3]
+
+    # Obliczanie kontrastu jako wariancji jasności (kanał V w HSV)
+    gray_cropped = cv2.cvtColor(cropped, cv2.COLOR_BGR2GRAY)
+    contrast = np.var(gray_cropped)
+
+    return mean_color, contrast
+
+
+# Funkcja do sprawdzania, czy bounding box zawiera samochód
+def is_car_detected(frame, bounding_box, background_color, color_tolerance=60, contrast_threshold=100):
+    mean_color, contrast = analyze_bounding_box(frame, bounding_box)
+
+    # Obliczanie różnicy między kolorem boxa a dominującym kolorem tła (na przestrzeni HSV)
+    color_difference = np.linalg.norm(np.array(mean_color) - np.array(background_color))
+
+    # Decyzja: samochód wykryty, jeśli różnica kolorów jest duża lub kontrast jest wysoki
+    if color_difference > color_tolerance or contrast > contrast_threshold:
+        return True
+    return False
+
+
 cap = cv2.VideoCapture(video_path)
 frame_width = int(cap.get(3))
 frame_height = int(cap.get(4))
@@ -115,6 +152,17 @@ else:
     log_event("Brak pliku CSV z miejscami parkingowymi.")
     exit()
 
+# Wczytywanie wideo i przygotowanie pierwszej klatki
+ret, first_frame = cap.read()
+if not ret:
+    log_event("Nie można wczytać klatki wideo!")
+    exit()
+
+# Wyznaczanie średniego koloru tła na podstawie pierwszej klatki
+background_color = calculate_background_color(first_frame)
+log_event(f"Dominujący kolor tła (HSV): {background_color}")
+
+# Rozszerzona pętla główna z zastosowaniem analizy koloru i kontrastu
 while cap.isOpened():
     ret, frame = cap.read()
     if not ret:
@@ -131,21 +179,19 @@ while cap.isOpened():
         if cv2.contourArea(contour) < 2000:
             continue
 
-        if False:  # Przełącz, żeby debugować tablice
-            license_plate_roi, bbox = detect_license_plate(frame, contour)
-            license_plate_text = read_license_plate(license_plate_roi)
+        # Weryfikacja detekcji poprzez analizę koloru i kontrastu
+        bounding_box = cv2.boundingRect(contour)
+        if not is_car_detected(frame, bounding_box, background_color):
+            continue  # Ignorujemy detekcję, jeśli bounding box zawiera tło
 
-            if license_plate_text:
-                x, y, w, h = bbox
-                cv2.putText(frame, license_plate_text, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
-                log_event(f"Wykryto tablicę rejestracyjną: {license_plate_text}")
-
-        x, y, w, h = cv2.boundingRect(contour)
+        # Rysowanie wykrytego samochodu
+        x, y, w, h = bounding_box
         cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
         cv2.putText(frame, "Samochod", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
 
+    # Zapis i wyświetlenie wyników
     out.write(frame)
-    cv2.imshow('Parking - Przetwarzanie Wideo', frame)
+    # cv2.imshow('Parking - Przetwarzanie Wideo', frame)
 
     if cv2.waitKey(30) & 0xFF == ord('q'):
         break
