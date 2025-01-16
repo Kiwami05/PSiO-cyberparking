@@ -15,6 +15,7 @@ back_sub = cv2.createBackgroundSubtractorMOG2(history=500, varThreshold=50)
 # Dodajemy słownik do śledzenia stanu miejsc parkingowych
 parking_state = {}
 
+
 def log_event(message):
     timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     log_entry = f"[{timestamp}] {message}\n"
@@ -22,11 +23,13 @@ def log_event(message):
     with open(log_path, 'a') as log_file:
         log_file.write(log_entry)
 
+
 def draw_parking_spots(frame, spots):
     for i, (x, y, w, h) in enumerate(spots):
         label = f"Miejsce {i + 1}"
         cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
         cv2.putText(frame, label, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+
 
 def load_parking_spots(csv_file):
     spots = []
@@ -37,6 +40,7 @@ def load_parking_spots(csv_file):
                 x, y, w, h = map(int, row)
                 spots.append((x, y, w, h))
     return spots
+
 
 def intersection_over_union(rect1, rect2):
     x1, y1, w1, h1 = rect1
@@ -52,6 +56,7 @@ def intersection_over_union(rect1, rect2):
     if rect1_area == 0:
         return 0
     return intersection_area / rect1_area
+
 
 def update_parking_status(contours, spots, state, iou_threshold=0.5):
     new_state = state.copy()
@@ -70,6 +75,7 @@ def update_parking_status(contours, spots, state, iou_threshold=0.5):
             log_event(f"Miejsce {i + 1} zostało zwolnione.")
             new_state[i] = None
     return new_state
+
 
 cap = cv2.VideoCapture(video_path)
 frame_width = int(cap.get(3))
