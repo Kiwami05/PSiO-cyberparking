@@ -2,6 +2,11 @@ import cv2
 import os
 import csv
 from datetime import datetime
+import pytesseract
+import numpy as np
+
+# Ścieżka do Tesseract (jeśli wymaga ustawienia własnej ścieżki)
+pytesseract.pytesseract.tesseract_cmd = r'/usr/bin/tesseract'
 
 # Ścieżka do filmu i pliku CSV
 video_path = 'data/Film_2.mp4'
@@ -24,11 +29,12 @@ def log_event(message):
         log_file.write(log_entry)
 
 
-def draw_parking_spots(frame, spots):
+def draw_parking_spots(frame, spots, state):
     for i, (x, y, w, h) in enumerate(spots):
+        color = (0, 255, 0) if state.get(i) is None else (0, 0, 255)
         label = f"Miejsce {i + 1}"
-        cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
-        cv2.putText(frame, label, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+        cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
+        cv2.putText(frame, label, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 
 
 def load_parking_spots(csv_file):
@@ -77,6 +83,24 @@ def update_parking_status(contours, spots, state, iou_threshold=0.5):
     return new_state
 
 
+def detect_license_plate(frame, contour, padding=10):
+    x, y, w, h = cv2.boundingRect(contour)
+    x, y, w, h = max(0, x - padding), max(0, y - padding), w + 2 * padding, h + 2 * padding
+    cropped = frame[y:y + h, x:x + w]
+    gray = cv2.cvtColor(cropped, cv2.COLOR_BGR2GRAY)
+    _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    return thresh, (x, y, w, h)
+
+
+def read_license_plate(roi):
+    try:
+        text = pytesseract.image_to_string(roi, config='--psm 6')
+        return text.strip()
+    except Exception as e:
+        log_event(f"Nie udało się odczytać tablicy rejestracyjnej: {e}")
+        return None
+
+
 cap = cv2.VideoCapture(video_path)
 frame_width = int(cap.get(3))
 frame_height = int(cap.get(4))
@@ -101,14 +125,24 @@ while cap.isOpened():
     contours, _ = cv2.findContours(fg_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     parking_state = update_parking_status(contours, parking_spots, parking_state)
-    draw_parking_spots(frame, parking_spots)
+    draw_parking_spots(frame, parking_spots, parking_state)
 
     for contour in contours:
-        if cv2.contourArea(contour) < 500:
+        if cv2.contourArea(contour) < 2000:
             continue
+
+        if False:  # Przełącz, żeby debugować tablice
+            license_plate_roi, bbox = detect_license_plate(frame, contour)
+            license_plate_text = read_license_plate(license_plate_roi)
+
+            if license_plate_text:
+                x, y, w, h = bbox
+                cv2.putText(frame, license_plate_text, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
+                log_event(f"Wykryto tablicę rejestracyjną: {license_plate_text}")
+
         x, y, w, h = cv2.boundingRect(contour)
-        cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
-        cv2.putText(frame, "Samochod", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+        cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
+        cv2.putText(frame, "Samochod", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
 
     out.write(frame)
     cv2.imshow('Parking - Przetwarzanie Wideo', frame)
