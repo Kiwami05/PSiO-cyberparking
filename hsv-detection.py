@@ -21,7 +21,8 @@ while cap.isOpened():
         break
 
     # Resize frame (optional for faster processing)
-    frame = cv2.resize(frame, (640, 480))
+    # frame = cv2.resize(frame, (640, 480))
+    # frame = cv2.resize(frame, (640, 480))
 
     # Convert to HSV
     hsv_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
@@ -41,7 +42,7 @@ while cap.isOpened():
 
     current_detections = []
     for contour in contours:
-        if cv2.contourArea(contour) > 500:  # Adjust size threshold as needed
+        if cv2.contourArea(contour) > 5000:  # Adjust size threshold as needed
             x, y, w, h = cv2.boundingRect(contour)
             current_detections.append((x, y, w, h))
             # Slightly expand bounding box
