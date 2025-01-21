@@ -1,18 +1,24 @@
-import cv2
+# Biblioteki standardowe
 import os
 import csv
 from datetime import datetime
+
+# Biblioteki zewnętrzne
 import pytesseract
-import numpy as np
+
+# Importy lokalne
+from src.car_detection import *
+from src.gate_handling import *
+from src.misc import *
 
 # Ścieżka do Tesseract (jeśli wymaga ustawienia własnej ścieżki)
 # Linux
-pytesseract.pytesseract.tesseract_cmd = r'/usr/bin/tesseract'
+# pytesseract.pytesseract.tesseract_cmd = r'/usr/bin/tesseract'
 # Windows
 # ???
 
 # Ścieżka do filmu i pliku CSV
-video_path = 'recordings/recording-01.mp4'
+video_path = 'recordings/recording-10.mp4'
 csv_parking_path = 'data/parking_spots.csv'
 csv_gates_path = 'data/gates.csv'
 
@@ -21,57 +27,6 @@ output_video_path = video_path.replace('.mp4', '-przetworzony.mp4')
 
 # Tworzy tło za pomocą BackgroundSubtractor
 back_sub = cv2.createBackgroundSubtractorMOG2(history=500, varThreshold=50)
-
-
-# Car detection functions
-
-def detect_cars_by_saturation(frame, min_saturation=150, area_threshold=2500, padding=None):
-    """
-    Detect cars based on high saturation regions in the HSV color space.
-
-    :param frame: Input video frame (BGR format).
-    :param min_saturation: Minimum saturation value for thresholding.
-    :param area_threshold: Minimum contour area to be considered a car.
-    :param padding: Optional tuple (pad_x, pad_y) to expand bounding boxes.
-    :return: List of bounding boxes [(x, y, w, h)].
-    """
-    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
-
-    # Convert frame to HSV and extract saturation channel
-    hsv_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-    saturation = hsv_frame[:, :, 1]
-
-    # Threshold to isolate high-saturation areas
-    _, sat_mask = cv2.threshold(saturation, min_saturation, 255, cv2.THRESH_BINARY)
-
-    # Clean the mask
-    sat_mask = cv2.morphologyEx(sat_mask, cv2.MORPH_OPEN, kernel)
-    sat_mask = cv2.morphologyEx(sat_mask, cv2.MORPH_CLOSE, kernel)
-
-    # Find contours
-    contours, _ = cv2.findContours(sat_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-    detections = []
-    for contour in contours:
-        if cv2.contourArea(contour) > area_threshold:
-            x, y, w, h = cv2.boundingRect(contour)
-            if padding:
-                pad_x, pad_y = padding
-                x, y, w, h = x - pad_x, y - pad_y, w + 2 * pad_x, h + 2 * pad_y
-            detections.append((x, y, w, h))
-    return detections
-
-
-def draw_detected_cars(frame, detections):
-    """
-    Draws bounding boxes for detected cars on the frame.
-
-    :param frame: Input video frame.
-    :param detections: List of bounding boxes [(x, y, w, h)].
-    """
-    for x, y, w, h in detections:
-        cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
-        cv2.putText(frame, "Samochod", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
 
 
 def log_event(message):
@@ -101,59 +56,7 @@ def draw_parking_spots(frame, spots, state):
         cv2.putText(frame, label, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 
 
-def draw_gates(frame, gates, state):
-    for i, (x, y, w, h) in enumerate(gates):
-        color = (0, 0, 255) if not state.get(i, False) else (0, 255, 0)
-        label = f"Bramka {'wjazdowa' if i == 0 else 'wyjazdowa'} - {'otwarta' if state.get(i, False) else 'zamknieta'}"
-        cv2.rectangle(frame, (x, y), (x + w, y + h), color, -1)
-        cv2.putText(frame, label, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
-
-
-def load_parking_spots(csv_file):
-    spots = []
-    if os.path.exists(csv_file):
-        with open(csv_file, 'r') as file:
-            reader = csv.reader(file)
-            for row in reader:
-                x, y, w, h = map(int, row)
-                spots.append((x, y, w, h))
-    return spots
-
-
-def check_gate_occupation(contours, gates, max_distance=50):
-    states = {}
-    for i, (gate_x, gate_y, gate_width, gate_height) in enumerate(gates):
-        car_x, car_y, car_width, car_height = contours
-        # 1. Bramka wjazdowa
-        # 2. Tył auta przed bramką
-        # 3. Przód auta
-        if i == 0 and car_y <= gate_y + gate_height and abs(gate_y - car_y) <= max_distance:  # Bramka wjazdowa
-            states[i] = True
-            break
-        if i == 1 and car_y + car_height >= gate_y and abs(gate_y - car_y) <= max_distance:  # Bramka wyjazdowa
-            states[i] = True
-            break
-        states.setdefault(i, False)
-    return states
-
-
-def intersection_over_union(rect1, rect2):
-    x1, y1, w1, h1 = rect1
-    x2, y2, w2, h2 = rect2
-    xi1 = max(x1, x2)
-    yi1 = max(y1, y2)
-    xi2 = min(x1 + w1, x2 + w2)
-    yi2 = min(y1 + h1, y2 + h2)
-    inter_width = max(0, xi2 - xi1)
-    inter_height = max(0, yi2 - yi1)
-    intersection_area = inter_width * inter_height
-    rect1_area = w1 * h1
-    if rect1_area == 0:
-        return 0
-    return intersection_area / rect1_area
-
-
-def update_parking_status(contours, spots, state, iou_threshold=0.5):
+def update_parking_status(contours, spots, state, iou_threshold=0.3):
     new_state = state.copy()
     for i, spot in enumerate(spots):
         spot_occupied = False
@@ -231,6 +134,7 @@ while cap.isOpened():
 
     # Update parking status
     parking_state = update_parking_status(car_detections, parking_spots, parking_state)
+    gate_state = check_gate_occupation(car_detections, gates)
 
     # Draw parking spots and gates
     draw_parking_spots(frame, parking_spots, parking_state)
