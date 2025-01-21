@@ -22,8 +22,8 @@ video_path = 'recordings/recording-10.mp4'
 csv_parking_path = 'data/parking_spots.csv'
 csv_gates_path = 'data/gates.csv'
 
-log_path = video_path.replace('.mp4', '.log')
-output_video_path = video_path.replace('.mp4', '-przetworzony.mp4')
+log_path = os.path.join('logs', os.path.basename(video_path).replace('.mp4', '.log'))
+output_video_path = os.path.join('outputs', os.path.basename(video_path).replace('.mp4', '-przetworzony.mp4'))
 
 # Tworzy tło za pomocą BackgroundSubtractor
 back_sub = cv2.createBackgroundSubtractorMOG2(history=500, varThreshold=50)
