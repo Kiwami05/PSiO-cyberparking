@@ -170,7 +170,7 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 
-# Dane
+# Foldery przeznaczone na input i output dla programu
 logs/
 outputs/
 recordings/
