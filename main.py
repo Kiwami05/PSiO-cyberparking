@@ -13,17 +13,17 @@ from src.misc import *
 
 # Ścieżka do Tesseract (jeśli wymaga ustawienia własnej ścieżki)
 # Linux
-# pytesseract.pytesseract.tesseract_cmd = r'/usr/bin/tesseract'
+pytesseract.pytesseract.tesseract_cmd = r'/usr/bin/tesseract'
 # Windows
 # ???
 
 # Ścieżka do filmu i pliku CSV
-video_path = 'recordings/recording-10.mp4'
+video_path = 'recordings/recording-02.mp4'
 csv_parking_path = 'data/parking_spots.csv'
 csv_gates_path = 'data/gates.csv'
 
 log_path = os.path.join('logs', os.path.basename(video_path).replace('.mp4', '.log'))
-output_video_path = os.path.join('outputs', os.path.basename(video_path).replace('.mp4', '-przetworzony.mp4'))
+output_video_path = os.path.join('outputs', os.path.basename(video_path).replace('.mp4', '_output.mp4'))
 
 # Tworzy tło za pomocą BackgroundSubtractor
 back_sub = cv2.createBackgroundSubtractorMOG2(history=500, varThreshold=50)
@@ -76,7 +76,7 @@ def update_parking_status(contours, spots, state, iou_threshold=0.3):
 
 
 def detect_license_plate(frame, contour, padding=10):
-    x, y, w, h = cv2.boundingRect(contour)
+    x, y, w, h = contour
     x, y, w, h = max(0, x - padding), max(0, y - padding), w + 2 * padding, h + 2 * padding
     cropped = frame[y:y + h, x:x + w]
     gray = cv2.cvtColor(cropped, cv2.COLOR_BGR2GRAY)
@@ -139,6 +139,24 @@ while cap.isOpened():
     # Draw parking spots and gates
     draw_parking_spots(frame, parking_spots, parking_state)
     draw_gates(frame, gates, gate_state)
+
+    '''TYMCZASOWE'''
+    # # Process each detected car for license plates
+    # for contour in car_detections:
+    #     # Detect license plate in the car region
+    #     license_plate_roi, bounding_box = detect_license_plate(frame, contour)
+    #
+    #     # Attempt to read the license plate
+    #     license_text = read_license_plate(license_plate_roi)
+    #
+    #     if license_text:
+    #         log_event(f"Tablica rejestracyjna wykryta: {license_text}")
+    #
+    #         # Optionally, draw the license plate text and bounding box on the frame
+    #         x, y, w, h = bounding_box
+    #         cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 255, 0), 2)
+    #         cv2.putText(frame, license_text, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 2)
+    '''TYMCZASOWE'''
 
     # Write and display the processed frame
     out.write(frame)
