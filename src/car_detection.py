@@ -52,7 +52,6 @@ def draw_detected_cars(frame, detections):
 
     :param frame: Ramka z filmu w formacie BGR.
     :param detections: Lista bounding box-ów reprezentujących samochody [(x, y, w, h)].
-    :return:
     """
     for x, y, w, h in detections:
         cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)

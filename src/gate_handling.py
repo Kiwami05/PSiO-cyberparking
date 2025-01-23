@@ -3,24 +3,26 @@ Moduł: gate_handling.py
 Opis: Zawiera funkcje do obsługi i rysowania bramek parkingowych.
 Utworzono: 21-01-2025
 """
-import cv2
 from src.license_plate_handling import *
-from src.misc import intersection_over_union
+from src.misc import intersection_over_union, log_event
 
 
-def check_gate_occupation(frame, gate_states, contours, gates, max_distance=50, iou_threshold=0.01):
+def check_gate_occupation(frame, gate_states, cars, gates, log_path, max_distance=50, iou_threshold=0.01):
     """
     Decyduje, czy bramka powinna być zamknięta, czy otwarta.
 
     :param frame: Ramka z filmu w formacie BGR.
     :param gate_states: Słownik reprezentujący czy dana bramka jest otwarta, czy nie.
-    :param contours: Lista reprezentująca współrzędne wykrytych aut.
+    :param cars: Lista reprezentująca współrzędne wykrytych aut.
     :param gates: Lista reprezentująca współrzędne bramki wjazdowej i wyjazdowej.
+    :param log_path: Ścieżka do pliku log.
     :param max_distance: Maksymalna odległość samochodu od bramki, na jakiej samochód zostanie wykryty.
     :param iou_threshold: Próg, przy którym uznajemy, że samochód jest w strefie bycia wykrytym przez bramkę.
-    :return: None
     """
-    for contour in contours:
+    # Przechowujemy nowy stan bramek na podstawie wszystkich samochodów
+    new_gate_states = {i: False for i in range(len(gates))}
+
+    for car in cars:
         for i, (gate_x, gate_y, gate_w, gate_h) in enumerate(gates):
             # Ustalamy współrzędne strefy wykrywania auta
             detection_area = [gate_x, gate_y, gate_w + max_distance, gate_h]
@@ -30,15 +32,19 @@ def check_gate_occupation(frame, gate_states, contours, gates, max_distance=50, 
                 detection_area[0] -= max_distance
 
             # Sprawdzamy, czy auto znajduje się w strefie wykrywania bramki
-            if intersection_over_union(contour, detection_area) > iou_threshold:
+            if intersection_over_union(car, detection_area) > iou_threshold:
+                new_gate_states[i] = True
 
-                # Jeśli status bramki się zmieni, to próbujemy wykryć tablicę
+                # Wykrywamy tablicę samochodu, jeśli bramka została otwarta
                 if not gate_states[i]:
-                    read_license_plate(frame, contour)
+                    plate = read_license_plate(frame, car)
+                    log_event(
+                        f'Samochód o rejestracji `{plate}` {"wjeżdża na parking" if i == 0 else "wyjeżdża z parkingu"}.',
+                        log_path)
 
-                gate_states[i] = True
-            else:
-                gate_states[i] = False
+    # Aktualizujemy stan bramek tylko na podstawie zbiorczego wyniku
+    for i in range(len(gates)):
+        gate_states[i] = new_gate_states[i]
 
 
 def draw_gates(frame, gates, state, draw_detection_range=False, max_distance=50):
@@ -50,12 +56,11 @@ def draw_gates(frame, gates, state, draw_detection_range=False, max_distance=50)
     :param state: Słownik z wartościami prawda/fałsz, czy dana bramka jest otwarta, czy nie.
     :param draw_detection_range: Wartość prawda/fałsz, czy chcemy rysować strefy wykrywania.
     :param max_distance: Maksymalna odległość samochodu od bramki, na jakiej samochód zostanie wykryty.
-    :return: None
     """
     # Rysujemy bramki
     for i, (x, y, w, h) in enumerate(gates):
         color = (0, 0, 255) if not state.get(i, False) else (0, 255, 0)
-        label = f"Bramka {'wjazdowa' if i == 0 else 'wyjazdowa'} - {'otwarta' if state.get(i, False) else 'zamknieta'}"
+        label = f"Bramka {'wjazdowa' if i == 0 else 'wyjazdowa'}"
         cv2.rectangle(frame, (x, y), (x + w, y + h), color, -1)
         cv2.putText(frame, label, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
 

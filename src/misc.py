@@ -18,6 +18,7 @@ def log_event(message, log_path):
     """
     timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     log_entry = f"[{timestamp}] {message}\n"
+
     print(log_entry, end='')
     with open(log_path, 'a') as log_file:
         log_file.write(log_entry)

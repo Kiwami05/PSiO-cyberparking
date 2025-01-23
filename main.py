@@ -5,7 +5,7 @@ from src.misc import *
 from src.parking_spot_handling import *
 
 # Ścieżki do danych wejściowych
-video_path = 'recordings/recording-03.mp4'
+video_path = 'recordings/recording-10.mp4'
 csv_parking_path = 'data/parking_spots.csv'  # Plik csv ze współrzędnymi miejsc parkingowych
 csv_gates_path = 'data/gates.csv'  # Plik csv ze współrzędnymi bramek parkingowych
 
@@ -53,13 +53,13 @@ while cap.isOpened():
     car_detections = detect_cars_by_saturation(frame)
 
     # Aktualizacja statusu parkingu
-    parking_state = update_parking_status(car_detections, parking_spots, parking_state, log_path)
-    check_gate_occupation(frame, gate_states, car_detections, gates)
+    update_parking_status(frame, car_detections, parking_spots, parking_state, log_path)
+    check_gate_occupation(frame, gate_states, car_detections, gates, log_path, max_distance=20)
 
     # Rysowanie bounding box-ów
     draw_detected_cars(frame, car_detections)
     draw_parking_spots(frame, parking_spots, parking_state)
-    draw_gates(frame, gates, gate_states)
+    draw_gates(frame, gates, gate_states, draw_detection_range=True, max_distance=20)
 
     # Zapisz i wyświetlą przetworzoną ramkę
     out.write(frame)
