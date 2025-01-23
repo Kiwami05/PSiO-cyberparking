@@ -11,8 +11,8 @@ def read_license_plate(frame, car):
 
     :param frame: Ramka z filmu w formacie BGR.
     :param car: Współrzędne reprezentujące samochód.
+    :return: None
     """
-
     reader = easyocr.Reader(['pl'])
 
     x, y, w, h = car

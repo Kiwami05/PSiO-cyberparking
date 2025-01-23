@@ -16,7 +16,6 @@ def detect_cars_by_saturation(frame, min_saturation=150, area_threshold=2500, pa
     :param padding: Opcjonalna krotka (pad_x, pad_y) dla rozszerzenia wymiarów bounding box-a.
     :return: Lista bounding box-ów reprezentujących samochody [(x, y, w, h)].
     """
-
     kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
 
     # Konwersja ramki do HSV i wyodrębnienie kanału nasycenia
@@ -55,7 +54,6 @@ def draw_detected_cars(frame, detections):
     :param detections: Lista bounding box-ów reprezentujących samochody [(x, y, w, h)].
     :return:
     """
-
     for x, y, w, h in detections:
         cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
         cv2.putText(frame, "Samochod", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)

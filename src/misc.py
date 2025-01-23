@@ -1,6 +1,6 @@
 """
 Moduł: misc.py
-Opis: Funkcje bliżej nieokreślone.
+Opis: Funkcje bliżej nieokreślone/ogólne.
 Utworzono: 21-01-2025
 """
 import csv
@@ -9,6 +9,13 @@ from datetime import datetime
 
 
 def log_event(message, log_path):
+    """
+    Zapisuje wiadomość do pliku log wraz ze znacznikiem czasu.
+
+    :param message: Wiadomość do pliku log.
+    :param log_path: Ścieżka do pliku log.
+    :return: None
+    """
     timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     log_entry = f"[{timestamp}] {message}\n"
     print(log_entry, end='')
@@ -17,6 +24,12 @@ def log_event(message, log_path):
 
 
 def load_csv(file_path):
+    """
+    Ładuje współrzędne x, y, w, h z pliku csv.
+
+    :param file_path: Ścieżka do pliku csv.
+    :return: Lista wszystkich sczytanych krotek ze współrzędnymi.
+    """
     elements = []
     if os.path.exists(file_path):
         with open(file_path, 'r') as file:

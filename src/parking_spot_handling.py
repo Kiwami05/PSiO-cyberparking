@@ -8,6 +8,9 @@ from src.misc import intersection_over_union, log_event
 
 
 def update_parking_status(contours, spots, state, log_path, iou_threshold=0.3):
+    """
+    TODO: do poprawy z przekazywaniem zmiennej state
+    """
     new_state = state.copy()
     for i, spot in enumerate(spots):
         spot_occupied = False
@@ -27,6 +30,14 @@ def update_parking_status(contours, spots, state, log_path, iou_threshold=0.3):
 
 
 def draw_parking_spots(frame, spots, state):
+    """
+    Rysuje miejsca parkingowe.
+
+    :param frame: Ramka z filmu w formacie BGR.
+    :param spots: Lista współrzędnych miejsc parkingowych.
+    :param state: TODO to mają być wartości True/False a nie jakiegoś gówno jak teraz.
+    :return: None
+    """
     for i, (x, y, w, h) in enumerate(spots):
         color = (0, 255, 0) if state.get(i) is None else (0, 0, 255)
         label = f"Miejsce {i + 1}"

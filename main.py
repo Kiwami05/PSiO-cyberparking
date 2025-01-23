@@ -29,6 +29,7 @@ gates = load_csv(csv_gates_path)
 print(f"Wczytano {len(parking_spots)} miejsc parkingowych i {len(gates)} bramki.")
 print(f"Przetwarzanie {video_path}")
 
+# Tworzenie słowników na stany miejsc i bramek parkingowych
 parking_state = {i: False for i in range(len(parking_spots))}
 gate_states = {i: False for i in range(len(gates))}
 
@@ -44,14 +45,14 @@ while cap.isOpened():
     if not ret:
         break
 
-    # Background subtraction for motion detection (optional)
+    # Odejmowanie tła dla wykrywania ruchu (opcjonalnie)
     fg_mask = back_sub.apply(frame)
     fg_mask = cv2.medianBlur(fg_mask, 5)
 
-    # Detect cars using saturation
+    # Wykrywanie samochodów przy użyciu nasycenia HSV
     car_detections = detect_cars_by_saturation(frame)
 
-    # Update parking status
+    # Aktualizacja statusu parkingu
     parking_state = update_parking_status(car_detections, parking_spots, parking_state, log_path)
     check_gate_occupation(frame, gate_states, car_detections, gates)
 
@@ -60,7 +61,7 @@ while cap.isOpened():
     draw_parking_spots(frame, parking_spots, parking_state)
     draw_gates(frame, gates, gate_states)
 
-    # Write and display the processed frame
+    # Zapisz i wyświetlą przetworzoną ramkę
     out.write(frame)
     cv2.imshow('Parking - Przetwarzanie Wideo', frame)
 

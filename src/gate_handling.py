@@ -10,17 +10,16 @@ from src.misc import intersection_over_union
 
 def check_gate_occupation(frame, gate_states, contours, gates, max_distance=50, iou_threshold=0.01):
     """
-    Funkcja decyduje, czy bramka powinna być zamknięta, czy otwarta.
+    Decyduje, czy bramka powinna być zamknięta, czy otwarta.
 
     :param frame: Ramka z filmu w formacie BGR.
-    :param gate_states: Słownik reprezentująca czy dana bramka jest otwarta, czy nie.
+    :param gate_states: Słownik reprezentujący czy dana bramka jest otwarta, czy nie.
     :param contours: Lista reprezentująca współrzędne wykrytych aut.
     :param gates: Lista reprezentująca współrzędne bramki wjazdowej i wyjazdowej.
     :param max_distance: Maksymalna odległość samochodu od bramki, na jakiej samochód zostanie wykryty.
     :param iou_threshold: Próg, przy którym uznajemy, że samochód jest w strefie bycia wykrytym przez bramkę.
-    :return: Słownik z wartościami prawda/fałsz, czy dana bramka jest otwarta, czy nie.
+    :return: None
     """
-
     for contour in contours:
         for i, (gate_x, gate_y, gate_w, gate_h) in enumerate(gates):
             # Ustalamy współrzędne strefy wykrywania auta
@@ -30,7 +29,7 @@ def check_gate_occupation(frame, gate_states, contours, gates, max_distance=50, 
             if i == 0:
                 detection_area[0] -= max_distance
 
-            # Sprawdzamy, czy auto nie znajduje się w strefie wykrywania bramki
+            # Sprawdzamy, czy auto znajduje się w strefie wykrywania bramki
             if intersection_over_union(contour, detection_area) > iou_threshold:
 
                 # Jeśli status bramki się zmieni, to próbujemy wykryć tablicę
@@ -44,16 +43,15 @@ def check_gate_occupation(frame, gate_states, contours, gates, max_distance=50, 
 
 def draw_gates(frame, gates, state, draw_detection_range=False, max_distance=50):
     """
-    Funkcja rysująca bramkę wjazdową i wyjazdową i opcjonalnie strefy wykrywania.
+    Rysuje bramkę wjazdową i wyjazdową i opcjonalnie strefy wykrywania.
 
     :param frame: Ramka z filmu w formacie BGR.
     :param gates: Lista reprezentująca współrzędne bramki wjazdowej i wyjazdowej.
     :param state: Słownik z wartościami prawda/fałsz, czy dana bramka jest otwarta, czy nie.
     :param draw_detection_range: Wartość prawda/fałsz, czy chcemy rysować strefy wykrywania.
     :param max_distance: Maksymalna odległość samochodu od bramki, na jakiej samochód zostanie wykryty.
-    :return:
+    :return: None
     """
-
     # Rysujemy bramki
     for i, (x, y, w, h) in enumerate(gates):
         color = (0, 0, 255) if not state.get(i, False) else (0, 255, 0)
