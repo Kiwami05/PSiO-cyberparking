@@ -4,10 +4,10 @@
 - [x] Bounding box-y dla aut
 - [x] Mechanizm zajętości miejsc
 - [x] Mechanizm barierek
-- [ ] Sczytywanie tablic rejestracyjnych
+- [x] Sczytywanie tablic rejestracyjnych
 - [ ] Funkcjonalna baza danych na tablice rejestracyjne
 
 # Poboczne
 
 - [x] Podział kodu na pliki
-- [ ] Sprzątanie kodu i opisy funkcji
+- [x] Sprzątanie kodu i opisy funkcji
