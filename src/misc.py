@@ -3,6 +3,28 @@ Moduł: misc.py
 Opis: Funkcje bliżej nieokreślone.
 Utworzono: 21-01-2025
 """
+import csv
+import os
+from datetime import datetime
+
+
+def log_event(message, log_path):
+    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    log_entry = f"[{timestamp}] {message}\n"
+    print(log_entry, end='')
+    with open(log_path, 'a') as log_file:
+        log_file.write(log_entry)
+
+
+def load_csv(file_path):
+    elements = []
+    if os.path.exists(file_path):
+        with open(file_path, 'r') as file:
+            reader = csv.reader(file)
+            for row in reader:
+                x, y, w, h = map(int, row)
+                elements.append((x, y, w, h))
+    return elements
 
 
 def intersection_over_union(rect1, rect2):

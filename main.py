@@ -1,97 +1,20 @@
-# Biblioteki standardowe
-import os
-import csv
-from datetime import datetime
-
-# Biblioteki zewnętrzne
-import pytesseract
-
 # Importy lokalne
 from src.car_detection import *
 from src.gate_handling import *
 from src.misc import *
+from src.parking_spot_handling import *
 
-# Ścieżka do Tesseract (jeśli wymaga ustawienia własnej ścieżki)
-# Linux
-pytesseract.pytesseract.tesseract_cmd = r'/usr/bin/tesseract'
-# Windows
-# ???
+# Ścieżki do danych wejściowych
+video_path = 'recordings/recording-03.mp4'
+csv_parking_path = 'data/parking_spots.csv'  # Plik csv ze współrzędnymi miejsc parkingowych
+csv_gates_path = 'data/gates.csv'  # Plik csv ze współrzędnymi bramek parkingowych
 
-# Ścieżka do filmu i pliku CSV
-video_path = 'recordings/recording-02.mp4'
-csv_parking_path = 'data/parking_spots.csv'
-csv_gates_path = 'data/gates.csv'
-
+# Ścieżki do danych wyjściowych
 log_path = os.path.join('logs', os.path.basename(video_path).replace('.mp4', '.log'))
 output_video_path = os.path.join('outputs', os.path.basename(video_path).replace('.mp4', '_output.mp4'))
 
 # Tworzy tło za pomocą BackgroundSubtractor
 back_sub = cv2.createBackgroundSubtractorMOG2(history=500, varThreshold=50)
-
-
-def log_event(message):
-    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    log_entry = f"[{timestamp}] {message}\n"
-    print(log_entry, end='')
-    with open(log_path, 'a') as log_file:
-        log_file.write(log_entry)
-
-
-def load_csv(file_path):
-    elements = []
-    if os.path.exists(file_path):
-        with open(file_path, 'r') as file:
-            reader = csv.reader(file)
-            for row in reader:
-                x, y, w, h = map(int, row)
-                elements.append((x, y, w, h))
-    return elements
-
-
-def draw_parking_spots(frame, spots, state):
-    for i, (x, y, w, h) in enumerate(spots):
-        color = (0, 255, 0) if state.get(i) is None else (0, 0, 255)
-        label = f"Miejsce {i + 1}"
-        cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
-        cv2.putText(frame, label, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
-
-
-def update_parking_status(contours, spots, state, iou_threshold=0.3):
-    new_state = state.copy()
-    for i, spot in enumerate(spots):
-        spot_occupied = False
-        for contour in contours:
-            x, y, w, h = contour
-            iou = intersection_over_union(spot, (x, y, w, h))
-            if iou > iou_threshold:
-                spot_occupied = True
-                new_state[i] = (x, y, w, h)
-                if state.get(i) is None:
-                    log_event(f"Samochód {new_state[i]} zajął Miejsce {i + 1}")
-                break
-        if not spot_occupied and state.get(i) is not None:
-            log_event(f"Miejsce {i + 1} zostało zwolnione.")
-            new_state[i] = None
-    return new_state
-
-
-def detect_license_plate(frame, contour, padding=10):
-    x, y, w, h = contour
-    x, y, w, h = max(0, x - padding), max(0, y - padding), w + 2 * padding, h + 2 * padding
-    cropped = frame[y:y + h, x:x + w]
-    gray = cv2.cvtColor(cropped, cv2.COLOR_BGR2GRAY)
-    _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    return thresh, (x, y, w, h)
-
-
-def read_license_plate(roi):
-    try:
-        text = pytesseract.image_to_string(roi, config='--psm 6')
-        return text.strip()
-    except Exception as e:
-        log_event(f"Nie udało się odczytać tablicy rejestracyjnej: {e}")
-        return None
-
 
 # Ładowanie wideo
 cap = cv2.VideoCapture(video_path)
@@ -107,16 +30,15 @@ print(f"Wczytano {len(parking_spots)} miejsc parkingowych i {len(gates)} bramki.
 print(f"Przetwarzanie {video_path}")
 
 parking_state = {i: False for i in range(len(parking_spots))}
-gate_state = {i: False for i in range(len(gates))}
+gate_states = {i: False for i in range(len(gates))}
 
 # Wczytywanie wideo i przygotowanie pierwszej klatki
 ret, first_frame = cap.read()
 if not ret:
-    log_event("Nie można wczytać klatki wideo!")
+    log_event("Nie można wczytać klatki wideo!", log_path)
     exit()
 
-# Rozszerzona pętla główna z zastosowaniem analizy koloru i kontrastu
-# Main processing loop
+# Główna pętla programu
 while cap.isOpened():
     ret, frame = cap.read()
     if not ret:
@@ -129,34 +51,14 @@ while cap.isOpened():
     # Detect cars using saturation
     car_detections = detect_cars_by_saturation(frame)
 
-    # Draw detected cars
-    draw_detected_cars(frame, car_detections)
-
     # Update parking status
-    parking_state = update_parking_status(car_detections, parking_spots, parking_state)
-    gate_state = check_gate_occupation(car_detections, gates)
+    parking_state = update_parking_status(car_detections, parking_spots, parking_state, log_path)
+    check_gate_occupation(frame, gate_states, car_detections, gates)
 
-    # Draw parking spots and gates
+    # Rysowanie bounding box-ów
+    draw_detected_cars(frame, car_detections)
     draw_parking_spots(frame, parking_spots, parking_state)
-    draw_gates(frame, gates, gate_state)
-
-    '''TYMCZASOWE'''
-    # # Process each detected car for license plates
-    # for contour in car_detections:
-    #     # Detect license plate in the car region
-    #     license_plate_roi, bounding_box = detect_license_plate(frame, contour)
-    #
-    #     # Attempt to read the license plate
-    #     license_text = read_license_plate(license_plate_roi)
-    #
-    #     if license_text:
-    #         log_event(f"Tablica rejestracyjna wykryta: {license_text}")
-    #
-    #         # Optionally, draw the license plate text and bounding box on the frame
-    #         x, y, w, h = bounding_box
-    #         cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 255, 0), 2)
-    #         cv2.putText(frame, license_text, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 2)
-    '''TYMCZASOWE'''
+    draw_gates(frame, gates, gate_states)
 
     # Write and display the processed frame
     out.write(frame)
@@ -168,4 +70,4 @@ while cap.isOpened():
 cap.release()
 out.release()
 cv2.destroyAllWindows()
-log_event("Przetwarzanie zakończone.")
+log_event("Przetwarzanie zakończone.", log_path)
