@@ -9,5 +9,5 @@
 
 # Poboczne
 
-- [ ] Podział kodu na pliki
+- [x] Podział kodu na pliki
 - [ ] Sprzątanie kodu i opisy funkcji
